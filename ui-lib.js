@@ -8,27 +8,30 @@
         style.textContent = `
             .cub-container {
                 position: fixed;
-                top: 20px;
-                right: 20px;
-                background-color: #1e1e24;
+                top: 80px;
+                right: 30px;
+                background: rgba(26, 28, 35, 0.85);
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
                 color: #ffffff;
-                border-radius: 8px;
-                box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                border-radius: 12px;
+                box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 z-index: 999999;
                 display: flex;
                 flex-direction: column;
-                overflow: hidden;
-                border: 1px solid #333;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                transition: opacity 0.3s ease;
             }
             .cub-header {
-                background-color: #2b2b36;
-                padding: 10px 15px;
+                background: rgba(0, 0, 0, 0.2);
+                padding: 12px 20px;
                 font-size: 16px;
-                font-weight: bold;
+                font-weight: 600;
                 cursor: grab;
                 user-select: none;
-                border-bottom: 1px solid #444;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                border-radius: 12px 12px 0 0;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
@@ -38,54 +41,87 @@
             }
             .cub-close {
                 cursor: pointer;
-                color: #ff5c5c;
+                color: #ff5f56;
+                background: rgba(255, 95, 86, 0.1);
+                border-radius: 50%;
+                width: 24px;
+                height: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
                 font-size: 18px;
-                line-height: 1;
+                transition: all 0.2s;
+            }
+            .cub-close:hover {
+                background: #ff5f56;
+                color: #fff;
             }
             .cub-content {
-                padding: 15px;
+                padding: 20px;
                 display: flex;
                 flex-direction: column;
-                gap: 10px;
+                gap: 12px;
             }
             .cub-input {
-                padding: 8px 10px;
-                border-radius: 4px;
-                border: 1px solid #444;
-                background-color: #121216;
+                padding: 10px 14px;
+                border-radius: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                background-color: rgba(0, 0, 0, 0.3);
                 color: #fff;
                 outline: none;
+                font-size: 14px;
+                transition: border-color 0.2s, box-shadow 0.2s;
             }
             .cub-input:focus {
                 border-color: #007bff;
+                box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
             }
             .cub-text {
                 font-size: 14px;
                 margin: 0;
-                color: #ccc;
+                color: #aeb2b8;
+                text-align: center;
+                white-space: pre-line;
             }
             .cub-img {
-                border-radius: 6px;
+                border-radius: 50%;
                 object-fit: cover;
                 align-self: center;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                border: 2px solid rgba(255,255,255,0.1);
+                margin: 10px 0;
             }
             .cub-btn {
-                padding: 8px 15px;
+                padding: 10px 15px;
                 border: none;
-                border-radius: 4px;
+                border-radius: 8px;
                 cursor: pointer;
-                font-weight: bold;
-                transition: background-color 0.2s;
+                font-weight: 600;
+                font-size: 14px;
+                transition: all 0.2s;
                 color: white;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.2);
             }
             .cub-btn:disabled {
                 opacity: 0.5;
                 cursor: not-allowed;
+                box-shadow: none;
             }
-            .cub-btn-blue { background-color: #007bff; }
-            .cub-btn-blue:hover:not(:disabled) { background-color: #0056b3; }
-            .cub-btn-green { background-color: #28a745; }
-            .cub-btn-green:hover:not(:disabled) { background-color: #1e7e34; }
+            .cub-btn-blue { 
+                background: linear-gradient(135deg, #007bff, #0056b3); 
+            }
+            .cub-btn-blue:hover:not(:disabled) { 
+                filter: brightness(1.1); 
+                transform: translateY(-1px);
+            }
+            .cub-btn-green { 
+                background: linear-gradient(135deg, #28a745, #1e7e34); 
+            }
+            .cub-btn-green:hover:not(:disabled) { 
+                filter: brightness(1.1);
+                transform: translateY(-1px);
+                box-shadow: 0 6px 15px rgba(40, 167, 69, 0.4);
+            }
         `;
         document.head.appendChild(style);
     };
