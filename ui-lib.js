@@ -1,7 +1,7 @@
 
 (function (global) {
   "use strict";
-
+  console.log("UI-Lib loaded!");
   // ─── Inject Styles (once) ───────────────────────────────────────────────────
   const STYLE_ID = "__rsniper_ui_styles__";
   if (!document.getElementById(STYLE_ID)) {
