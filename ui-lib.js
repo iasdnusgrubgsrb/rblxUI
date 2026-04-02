@@ -132,7 +132,6 @@
             
             this.title = config.title || "Custom UI";
             this.width = config.width || "300px";
-            this.elements = [];
 
             this.container = document.createElement('div');
             this.container.className = 'cub-container';
@@ -209,7 +208,12 @@
             btn.innerText = opts.text || 'Button';
             
             if (opts.hidden) btn.style.display = 'none';
-            if (opts.onClick) btn.addEventListener('click', opts.onClick);
+
+            let currentHandler = null;
+            if (opts.onClick) {
+                currentHandler = opts.onClick;
+                btn.addEventListener('click', currentHandler);
+            }
 
             this.content.appendChild(btn);
 
@@ -220,9 +224,12 @@
                 enable: () => { btn.disabled = false; },
                 disable: () => { btn.disabled = true; },
                 onClick: (fn) => {
-                    const newBtn = btn.cloneNode(true);
-                    btn.parentNode.replaceChild(newBtn, btn);
-                    newBtn.addEventListener('click', fn);
+                    // Remove the previous click listener if it exists to avoid running multiple times
+                    if (currentHandler) {
+                        btn.removeEventListener('click', currentHandler);
+                    }
+                    currentHandler = fn;
+                    btn.addEventListener('click', currentHandler);
                 }
             };
         }
