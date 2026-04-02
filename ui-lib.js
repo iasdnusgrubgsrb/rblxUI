@@ -1,25 +1,3 @@
-// ==UserScript==
-// @name         RSniperUI — Floating Panel Library
-// @namespace    https://raw.githubusercontent.com/YOUR_USERNAME/rsniper-ui/main/rsniper-ui-lib.js
-// @version      1.0.0
-// @description  Lightweight, modern floating UI panel builder for Roblox userscripts
-// @author       You
-// @grant        none
-// ==/UserScript==
-
-/**
- * RSniperUI
- * A zero-dependency, injectable floating panel library for userscripts.
- *
- * Usage:
- *   const panel = new RSniperUI({ title: "My Tool" });
- *   const inp   = panel.addInput({ placeholder: "Enter username" });
- *   const btn   = panel.addButton({ label: "Go", variant: "primary" });
- *   const txt   = panel.addStatus();
- *   const img   = panel.addAvatar();
- *   btn.onClick(() => console.log(inp.value()));
- *   panel.mount();
- */
 
 (function (global) {
   "use strict";
