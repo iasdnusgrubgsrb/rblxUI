@@ -1,7 +1,29 @@
+// ==UserScript==
+// @name         RSniperUI — Floating Panel Library
+// @namespace    https://raw.githubusercontent.com/YOUR_USERNAME/rsniper-ui/main/rsniper-ui-lib.js
+// @version      1.0.0
+// @description  Lightweight, modern floating UI panel builder for Roblox userscripts
+// @author       You
+// @grant        none
+// ==/UserScript==
+
+/**
+ * RSniperUI
+ * A zero-dependency, injectable floating panel library for userscripts.
+ *
+ * Usage:
+ *   const panel = new RSniperUI({ title: "My Tool" });
+ *   const inp   = panel.addInput({ placeholder: "Enter username" });
+ *   const btn   = panel.addButton({ label: "Go", variant: "primary" });
+ *   const txt   = panel.addStatus();
+ *   const img   = panel.addAvatar();
+ *   btn.onClick(() => console.log(inp.value()));
+ *   panel.mount();
+ */
 
 (function (global) {
   "use strict";
-  console.log("UI-Lib loaded!");
+
   // ─── Inject Styles (once) ───────────────────────────────────────────────────
   const STYLE_ID = "__rsniper_ui_styles__";
   if (!document.getElementById(STYLE_ID)) {
@@ -341,16 +363,8 @@
   // ─── RSniperUI Class ─────────────────────────────────────────────────────────
   class RSniperUI {
     constructor({ title = "Tool" } = {}) {
-      this._title  = title;
-      this._panel  = null;
-      this._body   = null;
-      this._mounted = false;
-    }
-
-    // Build DOM
-    mount() {
-      if (this._mounted) return;
-      this._mounted = true;
+      // Build the full DOM tree immediately (detached from the document).
+      // This means add* methods work before mount() is called.
 
       // Panel
       const panel = document.createElement("div");
@@ -365,7 +379,7 @@
 
       const dots = document.createElement("div");
       dots.className = "rs-dot-group";
-      ["rs-dot-r","rs-dot-y","rs-dot-g"].forEach(c => {
+      ["rs-dot-r", "rs-dot-y", "rs-dot-g"].forEach((c) => {
         const d = document.createElement("span");
         d.className = "rs-dot " + c;
         dots.appendChild(d);
@@ -373,7 +387,7 @@
 
       const titleEl = document.createElement("span");
       titleEl.className = "rs-title";
-      titleEl.textContent = this._title;
+      titleEl.textContent = title;
 
       left.appendChild(dots);
       left.appendChild(titleEl);
@@ -387,39 +401,40 @@
       header.appendChild(left);
       header.appendChild(closeBtn);
 
-      // Body
+      // Body — add* methods append into this
       const body = document.createElement("div");
       body.className = "rs-body";
 
       panel.appendChild(header);
       panel.appendChild(body);
-      document.body.appendChild(panel);
 
       this._panel = panel;
       this._body  = body;
 
       makeDraggable(panel, header);
+    }
 
-      // Show on next frame (for CSS transition)
+    // Attach the already-built panel to the document and animate it in.
+    mount() {
+      if (this._panel.isConnected) return;
+      document.body.appendChild(this._panel);
+      // Double rAF so the browser registers the initial opacity:0 before transitioning
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => panel.classList.add("rs-visible"));
+        requestAnimationFrame(() => this._panel.classList.add("rs-visible"));
       });
     }
 
     show() {
-      if (!this._mounted) this.mount();
+      if (!this._panel.isConnected) this.mount();
       this._panel.classList.add("rs-visible");
     }
 
     hide() {
-      this._panel && this._panel.classList.remove("rs-visible");
+      this._panel.classList.remove("rs-visible");
     }
 
     destroy() {
-      this._panel && this._panel.remove();
-      this._panel  = null;
-      this._body   = null;
-      this._mounted = false;
+      this._panel.remove();
     }
 
     // ── Widgets ───────────────────────────────────────────────────────────────
