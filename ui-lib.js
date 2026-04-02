@@ -1,593 +1,250 @@
 // ==UserScript==
-// @name         RSniperUI — Floating Panel Library
-// @namespace    https://raw.githubusercontent.com/YOUR_USERNAME/rsniper-ui/main/rsniper-ui-lib.js
+// @name         FloatUI — General Purpose Panel Library
+// @namespace    https://raw.githubusercontent.com/YOUR_USERNAME/float-ui/main/float-ui.js
 // @version      1.0.0
-// @description  Lightweight, modern floating UI panel builder for Roblox userscripts
+// @description  Simple, general-purpose floating panel builder for userscripts
 // @author       You
 // @grant        none
 // ==/UserScript==
 
 /**
- * RSniperUI
- * A zero-dependency, injectable floating panel library for userscripts.
+ * FloatUI — dead-simple floating panel builder.
  *
- * Usage:
- *   const panel = new RSniperUI({ title: "My Tool" });
- *   const inp   = panel.addInput({ placeholder: "Enter username" });
- *   const btn   = panel.addButton({ label: "Go", variant: "primary" });
- *   const txt   = panel.addStatus();
- *   const img   = panel.addAvatar();
- *   btn.onClick(() => console.log(inp.value()));
- *   panel.mount();
+ * const panel = new FloatUI("My Tool");
+ * const inp = panel.input("Enter username...");
+ * const btn = panel.button("Search", "blue");
+ * const txt = panel.text("Ready.");
+ * const img = panel.image();
+ * btn.on("click", () => console.log(inp.val()));
+ * panel.open();
  */
 
 (function (global) {
   "use strict";
 
-  // ─── Inject Styles (once) ───────────────────────────────────────────────────
-  const STYLE_ID = "__rsniper_ui_styles__";
-  if (!document.getElementById(STYLE_ID)) {
-    const style = document.createElement("style");
-    style.id = STYLE_ID;
-    style.textContent = `
-      @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+  // ── Inject base styles once ──────────────────────────────────────────────────
+  if (!document.getElementById("__floatui_styles__")) {
+    const s = document.createElement("style");
+    s.id = "__floatui_styles__";
+    s.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700&family=DM+Mono&display=swap');
 
-      :root {
-        --rs-bg:           #0d0f14;
-        --rs-surface:      #13161e;
-        --rs-surface-2:    #1a1e28;
-        --rs-border:       rgba(255,255,255,0.07);
-        --rs-border-focus: rgba(99,179,237,0.5);
-        --rs-accent:       #63b3ed;
-        --rs-accent-dark:  #2b6cb0;
-        --rs-success:      #68d391;
-        --rs-success-dark: #276749;
-        --rs-danger:       #fc8181;
-        --rs-text:         #e2e8f0;
-        --rs-text-muted:   #718096;
-        --rs-text-dim:     #4a5568;
-        --rs-radius:       10px;
-        --rs-radius-lg:    14px;
-        --rs-shadow:       0 24px 64px rgba(0,0,0,0.6), 0 4px 16px rgba(0,0,0,0.4);
-        --rs-glow:         0 0 20px rgba(99,179,237,0.15);
-      }
-
-      /* ── Panel ──────────────────────────────────────── */
-      .rs-panel {
+      .fui-panel {
         position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%) scale(0.94);
-        width: 320px;
-        background: var(--rs-bg);
-        border: 1px solid var(--rs-border);
-        border-radius: var(--rs-radius-lg);
-        box-shadow: var(--rs-shadow);
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        width: 300px;
+        background: #0e1117;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
+        box-shadow: 0 24px 60px rgba(0,0,0,0.7);
         font-family: 'Syne', sans-serif;
-        color: var(--rs-text);
+        color: #e2e8f0;
         z-index: 2147483647;
         overflow: hidden;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.22s cubic-bezier(.4,0,.2,1),
-                    transform 0.22s cubic-bezier(.4,0,.2,1);
-        user-select: none;
-      }
-      .rs-panel.rs-visible {
-        opacity: 1;
-        pointer-events: all;
-        transform: translate(-50%, -50%) scale(1);
       }
 
-      /* ── Drag handle / header ───────────────────────── */
-      .rs-header {
+      .fui-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 14px 16px 12px;
-        background: var(--rs-surface);
-        border-bottom: 1px solid var(--rs-border);
+        padding: 11px 14px;
+        background: #161b26;
+        border-bottom: 1px solid rgba(255,255,255,0.07);
         cursor: grab;
-        gap: 10px;
       }
-      .rs-header:active { cursor: grabbing; }
+      .fui-header:active { cursor: grabbing; }
+      .fui-title { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 
-      .rs-header-left {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-width: 0;
+      .fui-close {
+        background: none; border: none; color: #4a5568;
+        cursor: pointer; font-size: 16px; line-height: 1;
+        padding: 0 2px; transition: color .15s;
       }
-      .rs-dot-group {
-        display: flex;
-        gap: 5px;
-        flex-shrink: 0;
-      }
-      .rs-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        opacity: 0.7;
-      }
-      .rs-dot-r { background: #fc8181; }
-      .rs-dot-y { background: #f6e05e; }
-      .rs-dot-g { background: #68d391; }
+      .fui-close:hover { color: #fc8181; }
 
-      .rs-title {
-        font-size: 13px;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: var(--rs-text);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
+      .fui-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 
-      .rs-close {
-        background: none;
-        border: none;
-        color: var(--rs-text-dim);
-        cursor: pointer;
-        padding: 2px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 6px;
-        flex-shrink: 0;
-        transition: color 0.15s, background 0.15s;
-        line-height: 1;
+      .fui-input {
+        width: 100%; box-sizing: border-box;
+        background: #1a1f2e; border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 8px; color: #e2e8f0;
+        font-family: 'DM Mono', monospace; font-size: 12px;
+        padding: 8px 10px; outline: none; transition: border-color .15s;
       }
-      .rs-close:hover {
-        color: var(--rs-danger);
-        background: rgba(252,129,129,0.1);
-      }
-      .rs-close svg { width: 14px; height: 14px; }
+      .fui-input::placeholder { color: #4a5568; }
+      .fui-input:focus { border-color: rgba(99,179,237,.5); }
 
-      /* ── Body ───────────────────────────────────────── */
-      .rs-body {
-        padding: 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
+      .fui-btn {
+        width: 100%; box-sizing: border-box;
+        border: none; border-radius: 8px;
+        font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700;
+        letter-spacing: .05em; padding: 9px;
+        cursor: pointer; transition: filter .15s, transform .1s;
+      }
+      .fui-btn:hover:not(:disabled)  { filter: brightness(1.15); }
+      .fui-btn:active:not(:disabled) { transform: scale(.98); }
+      .fui-btn:disabled { opacity: .4; cursor: not-allowed; }
+      .fui-btn-blue    { background: linear-gradient(135deg,#3b82f6,#1d4ed8); color:#fff; }
+      .fui-btn-green   { background: linear-gradient(135deg,#22c55e,#15803d); color:#fff; }
+      .fui-btn-red     { background: linear-gradient(135deg,#ef4444,#991b1b); color:#fff; }
+      .fui-btn-gray    { background: #1a1f2e; color:#94a3b8; border:1px solid rgba(255,255,255,.08); }
+
+      .fui-text {
+        font-family: 'DM Mono', monospace; font-size: 11px;
+        color: #718096; background: #1a1f2e;
+        border: 1px solid rgba(255,255,255,.07);
+        border-radius: 8px; padding: 8px 10px;
+        line-height: 1.6; white-space: pre-wrap; word-break: break-all;
       }
 
-      /* ── Input ──────────────────────────────────────── */
-      .rs-input-wrap {
-        position: relative;
-      }
-      .rs-input {
-        width: 100%;
-        box-sizing: border-box;
-        background: var(--rs-surface-2);
-        border: 1px solid var(--rs-border);
-        border-radius: var(--rs-radius);
-        color: var(--rs-text);
-        font-family: 'DM Mono', monospace;
-        font-size: 13px;
-        padding: 9px 12px;
-        outline: none;
-        transition: border-color 0.15s, box-shadow 0.15s;
-      }
-      .rs-input::placeholder { color: var(--rs-text-dim); }
-      .rs-input:focus {
-        border-color: var(--rs-border-focus);
-        box-shadow: 0 0 0 3px rgba(99,179,237,0.1);
-      }
-      .rs-input:disabled {
-        opacity: 0.45;
-        cursor: not-allowed;
+      .fui-img {
+        display: block; border-radius: 8px;
+        border: 1px solid rgba(255,255,255,.08);
+        max-width: 100%; margin: 0 auto;
       }
 
-      /* ── Button ─────────────────────────────────────── */
-      .rs-btn {
-        width: 100%;
-        box-sizing: border-box;
-        border: none;
-        border-radius: var(--rs-radius);
-        font-family: 'Syne', sans-serif;
-        font-size: 13px;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        padding: 10px 14px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 7px;
-        transition: filter 0.15s, transform 0.1s, opacity 0.15s;
-        position: relative;
-        overflow: hidden;
-      }
-      .rs-btn::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: white;
-        opacity: 0;
-        transition: opacity 0.15s;
-      }
-      .rs-btn:hover::after  { opacity: 0.06; }
-      .rs-btn:active { transform: scale(0.98); }
-      .rs-btn:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-        transform: none;
-      }
-      .rs-btn:disabled::after { display: none; }
+      .fui-sep { height: 1px; background: rgba(255,255,255,.07); }
 
-      .rs-btn-primary {
-        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-        color: #fff;
-        box-shadow: 0 4px 12px rgba(59,130,246,0.3);
-      }
-      .rs-btn-primary:not(:disabled):hover {
-        filter: brightness(1.12);
-        box-shadow: 0 6px 16px rgba(59,130,246,0.4);
-      }
-
-      .rs-btn-success {
-        background: linear-gradient(135deg, #22c55e, #15803d);
-        color: #fff;
-        box-shadow: 0 4px 12px rgba(34,197,94,0.3);
-      }
-      .rs-btn-success:not(:disabled):hover {
-        filter: brightness(1.1);
-        box-shadow: 0 6px 16px rgba(34,197,94,0.4);
-      }
-
-      .rs-btn-ghost {
-        background: var(--rs-surface-2);
-        color: var(--rs-text-muted);
-        border: 1px solid var(--rs-border);
-      }
-      .rs-btn-ghost:not(:disabled):hover {
-        color: var(--rs-text);
-        border-color: rgba(255,255,255,0.15);
-      }
-
-      /* ── Status text ────────────────────────────────── */
-      .rs-status {
-        font-family: 'DM Mono', monospace;
-        font-size: 11.5px;
-        color: var(--rs-text-muted);
-        background: var(--rs-surface-2);
-        border: 1px solid var(--rs-border);
-        border-radius: var(--rs-radius);
-        padding: 9px 12px;
-        min-height: 38px;
-        line-height: 1.6;
-        white-space: pre-wrap;
-        word-break: break-all;
-        transition: color 0.2s;
-      }
-      .rs-status.rs-status-found {
-        color: var(--rs-success);
-        border-color: rgba(104,211,145,0.25);
-        background: rgba(104,211,145,0.05);
-      }
-      .rs-status.rs-status-error {
-        color: var(--rs-danger);
-        border-color: rgba(252,129,129,0.25);
-        background: rgba(252,129,129,0.05);
-      }
-
-      /* ── Spinner ────────────────────────────────────── */
-      .rs-spinner {
-        display: inline-block;
-        width: 10px;
-        height: 10px;
-        border: 2px solid rgba(99,179,237,0.2);
-        border-top-color: var(--rs-accent);
-        border-radius: 50%;
-        animation: rs-spin 0.65s linear infinite;
-        flex-shrink: 0;
-      }
-      @keyframes rs-spin { to { transform: rotate(360deg); } }
-
-      /* ── Avatar ─────────────────────────────────────── */
-      .rs-avatar-wrap {
-        display: flex;
-        justify-content: center;
-        padding: 2px 0 4px;
-      }
-      .rs-avatar {
-        width: 64px;
-        height: 64px;
-        border-radius: 12px;
-        object-fit: cover;
-        border: 2px solid var(--rs-border);
-        background: var(--rs-surface-2);
-        transition: opacity 0.2s, transform 0.2s;
-        display: block;
-      }
-      .rs-avatar.rs-hidden { display: none; }
-
-      /* ── Divider ─────────────────────────────────────── */
-      .rs-divider {
-        height: 1px;
-        background: var(--rs-border);
-        margin: 2px 0;
-      }
-
-      /* ── Hidden utility ─────────────────────────────── */
-      .rs-hidden { display: none !important; }
-
-      /* ── Tooltip badge ──────────────────────────────── */
-      .rs-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        font-family: 'DM Mono', monospace;
-        font-size: 10px;
-        padding: 3px 8px;
-        border-radius: 99px;
-        border: 1px solid var(--rs-border);
-        color: var(--rs-text-dim);
-        background: var(--rs-surface-2);
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        align-self: flex-start;
-      }
+      .fui-hidden { display: none !important; }
     `;
-    document.head.appendChild(style);
+    document.head.appendChild(s);
   }
 
-  // ─── Drag Logic ─────────────────────────────────────────────────────────────
-  function makeDraggable(panel, handle) {
-    let ox = 0, oy = 0, mx = 0, my = 0;
-    let dragging = false;
-
+  // ── Drag ────────────────────────────────────────────────────────────────────
+  function addDrag(panel, handle) {
+    let dx = 0, dy = 0, dragging = false;
     handle.addEventListener("mousedown", (e) => {
-      if (e.target.closest(".rs-close")) return;
+      if (e.target.closest(".fui-close")) return;
       dragging = true;
-      // Switch from transform-based centering to explicit coords
-      const rect = panel.getBoundingClientRect();
-      panel.style.left = rect.left + "px";
-      panel.style.top = rect.top + "px";
+      const r = panel.getBoundingClientRect();
       panel.style.transform = "none";
-      ox = e.clientX - rect.left;
-      oy = e.clientY - rect.top;
+      panel.style.left = r.left + "px";
+      panel.style.top  = r.top  + "px";
+      dx = e.clientX - r.left;
+      dy = e.clientY - r.top;
       e.preventDefault();
     });
-
     document.addEventListener("mousemove", (e) => {
       if (!dragging) return;
-      panel.style.left = e.clientX - ox + "px";
-      panel.style.top  = e.clientY - oy + "px";
+      panel.style.left = (e.clientX - dx) + "px";
+      panel.style.top  = (e.clientY - dy) + "px";
     });
-
     document.addEventListener("mouseup", () => { dragging = false; });
   }
 
-  // ─── RSniperUI Class ─────────────────────────────────────────────────────────
-  class RSniperUI {
-    constructor({ title = "Tool" } = {}) {
-      // Build the full DOM tree immediately (detached from the document).
-      // This means add* methods work before mount() is called.
-
+  // ── FloatUI ─────────────────────────────────────────────────────────────────
+  class FloatUI {
+    constructor(title = "Tool") {
       // Panel
-      const panel = document.createElement("div");
-      panel.className = "rs-panel";
+      this._el = document.createElement("div");
+      this._el.className = "fui-panel";
 
       // Header
       const header = document.createElement("div");
-      header.className = "rs-header";
-
-      const left = document.createElement("div");
-      left.className = "rs-header-left";
-
-      const dots = document.createElement("div");
-      dots.className = "rs-dot-group";
-      ["rs-dot-r", "rs-dot-y", "rs-dot-g"].forEach((c) => {
-        const d = document.createElement("span");
-        d.className = "rs-dot " + c;
-        dots.appendChild(d);
-      });
-
+      header.className = "fui-header";
       const titleEl = document.createElement("span");
-      titleEl.className = "rs-title";
+      titleEl.className = "fui-title";
       titleEl.textContent = title;
+      const closeEl = document.createElement("button");
+      closeEl.className = "fui-close";
+      closeEl.textContent = "✕";
+      closeEl.onclick = () => this.close();
+      header.append(titleEl, closeEl);
 
-      left.appendChild(dots);
-      left.appendChild(titleEl);
+      // Body
+      this._body = document.createElement("div");
+      this._body.className = "fui-body";
 
-      const closeBtn = document.createElement("button");
-      closeBtn.className = "rs-close";
-      closeBtn.setAttribute("aria-label", "Close");
-      closeBtn.innerHTML = `<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="1" y1="1" x2="13" y2="13"/><line x1="13" y1="1" x2="1" y2="13"/></svg>`;
-      closeBtn.onclick = () => this.hide();
-
-      header.appendChild(left);
-      header.appendChild(closeBtn);
-
-      // Body — add* methods append into this
-      const body = document.createElement("div");
-      body.className = "rs-body";
-
-      panel.appendChild(header);
-      panel.appendChild(body);
-
-      this._panel = panel;
-      this._body  = body;
-
-      makeDraggable(panel, header);
+      this._el.append(header, this._body);
+      addDrag(this._el, header);
     }
 
-    // Attach the already-built panel to the document and animate it in.
-    mount() {
-      if (this._panel.isConnected) return;
-      document.body.appendChild(this._panel);
-      // Double rAF so the browser registers the initial opacity:0 before transitioning
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => this._panel.classList.add("rs-visible"));
-      });
+    // ── Lifecycle ──────────────────────────────────────────────────────────────
+    open() {
+      if (!this._el.isConnected) document.body.appendChild(this._el);
+      this._el.classList.remove("fui-hidden");
+      return this;
     }
+    close()   { this._el.classList.add("fui-hidden"); return this; }
+    destroy() { this._el.remove(); return this; }
 
-    show() {
-      if (!this._panel.isConnected) this.mount();
-      this._panel.classList.add("rs-visible");
-    }
+    // ── Widgets ────────────────────────────────────────────────────────────────
 
-    hide() {
-      this._panel.classList.remove("rs-visible");
-    }
-
-    destroy() {
-      this._panel.remove();
-    }
-
-    // ── Widgets ───────────────────────────────────────────────────────────────
-
-    /** Text input. Returns { value(), disable(), enable(), focus() } */
-    addInput({ placeholder = "", value = "" } = {}) {
-      const wrap = document.createElement("div");
-      wrap.className = "rs-input-wrap";
-
+    /** <input type="text"> — returns { val(), set(v), on(event, fn), el } */
+    input(placeholder = "") {
       const el = document.createElement("input");
-      el.className = "rs-input";
+      el.className = "fui-input";
       el.type = "text";
       el.placeholder = placeholder;
-      el.value = value;
-
-      // Allow Enter key to submit (fire a custom event)
-      el.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") el.dispatchEvent(new CustomEvent("rs-enter", { bubbles: true }));
-      });
-
-      wrap.appendChild(el);
-      this._body.appendChild(wrap);
-
+      this._body.appendChild(el);
       return {
-        value: ()      => el.value.trim(),
-        setValue: (v)  => { el.value = v; },
-        disable: ()    => { el.disabled = true; },
-        enable: ()     => { el.disabled = false; },
-        focus: ()      => el.focus(),
-        onEnter: (fn)  => el.addEventListener("rs-enter", fn),
-        _el: el,
+        val:  ()       => el.value.trim(),
+        set:  (v)      => { el.value = v; },
+        on:   (ev, fn) => { el.addEventListener(ev, fn); return this; },
+        el,
       };
     }
 
     /**
-     * Button.
-     * variant: "primary" | "success" | "ghost"
-     * Returns { onClick(fn), disable(), enable(), setLabel(str), setLoading(bool) }
+     * <button> — color: "blue" | "green" | "red" | "gray"
+     * Returns { on(event, fn), enabled(bool), label(str), hidden(bool), el }
      */
-    addButton({ label = "Button", variant = "primary", hidden = false } = {}) {
+    button(label = "Button", color = "blue") {
       const el = document.createElement("button");
-      el.className = `rs-btn rs-btn-${variant}`;
-      if (hidden) el.classList.add("rs-hidden");
-
-      const labelSpan = document.createElement("span");
-      labelSpan.textContent = label;
-
-      const spinner = document.createElement("span");
-      spinner.className = "rs-spinner rs-hidden";
-
-      el.appendChild(spinner);
-      el.appendChild(labelSpan);
+      el.className = `fui-btn fui-btn-${color}`;
+      el.textContent = label;
       this._body.appendChild(el);
-
-      let _clickHandlers = [];
-
-      el.addEventListener("click", () => {
-        if (!el.disabled) _clickHandlers.forEach(fn => fn());
-      });
-
       return {
-        onClick: (fn) => { _clickHandlers.push(fn); },
-        clearHandlers: () => { _clickHandlers = []; },
-        disable: ()   => { el.disabled = true; },
-        enable: ()    => { el.disabled = false; },
-        show: ()      => el.classList.remove("rs-hidden"),
-        hide: ()      => el.classList.add("rs-hidden"),
-        setLabel: (s) => { labelSpan.textContent = s; },
-        setLoading: (on) => {
-          if (on) {
-            spinner.classList.remove("rs-hidden");
-            el.disabled = true;
-          } else {
-            spinner.classList.add("rs-hidden");
-            el.disabled = false;
-          }
-        },
-        _el: el,
+        on:      (ev, fn) => { el.addEventListener(ev, fn); return this; },
+        enabled: (v)      => { el.disabled = !v; return this; },
+        label:   (v)      => { el.textContent = v; return this; },
+        hidden:  (v)      => { el.classList.toggle("fui-hidden", v); return this; },
+        el,
       };
     }
 
-    /**
-     * Status / log line.
-     * Returns { set(text, state?), clear() }
-     * state: "idle" | "found" | "error"
-     */
-    addStatus({ text = "Awaiting input…" } = {}) {
+    /** Text/status display — returns { set(str), el } */
+    text(content = "") {
       const el = document.createElement("div");
-      el.className = "rs-status";
-      el.textContent = text;
+      el.className = "fui-text";
+      el.textContent = content;
       this._body.appendChild(el);
-
       return {
-        set: (msg, state = "idle") => {
-          el.textContent = msg;
-          el.classList.remove("rs-status-found", "rs-status-error");
-          if (state === "found")  el.classList.add("rs-status-found");
-          if (state === "error")  el.classList.add("rs-status-error");
-        },
-        clear: () => { el.textContent = ""; },
-        _el: el,
+        set:    (v) => { el.textContent = v; return this; },
+        hidden: (v) => { el.classList.toggle("fui-hidden", v); return this; },
+        el,
       };
     }
 
-    /**
-     * Avatar / headshot image.
-     * Returns { setSrc(url), show(), hide() }
-     */
-    addAvatar() {
-      const wrap = document.createElement("div");
-      wrap.className = "rs-avatar-wrap rs-hidden";
-
-      const img = document.createElement("img");
-      img.className = "rs-avatar";
-      img.alt = "avatar";
-
-      wrap.appendChild(img);
-      this._body.appendChild(wrap);
-
+    /** <img> — returns { src(url), hidden(bool), el } */
+    image(src = "") {
+      const el = document.createElement("img");
+      el.className = "fui-img" + (src ? "" : " fui-hidden");
+      if (src) el.src = src;
+      this._body.appendChild(el);
       return {
-        setSrc: (url) => {
-          img.src = url;
-          img.onload = () => wrap.classList.remove("rs-hidden");
-        },
-        show: () => wrap.classList.remove("rs-hidden"),
-        hide: () => wrap.classList.add("rs-hidden"),
-        _el: wrap,
+        src:    (url) => { el.src = url; el.classList.remove("fui-hidden"); return this; },
+        hidden: (v)   => { el.classList.toggle("fui-hidden", v); return this; },
+        el,
       };
     }
 
-    /** Thin horizontal rule */
-    addDivider() {
+    /** Horizontal rule separator */
+    sep() {
       const el = document.createElement("div");
-      el.className = "rs-divider";
+      el.className = "fui-sep";
       this._body.appendChild(el);
+      return this;
     }
 
-    /** Small pill badge (e.g. version label, game ID) */
-    addBadge({ text = "" } = {}) {
-      const el = document.createElement("span");
-      el.className = "rs-badge";
-      el.textContent = text;
+    /** Append any raw HTMLElement directly */
+    append(el) {
       this._body.appendChild(el);
-      return {
-        set: (t) => { el.textContent = t; },
-        show: () => el.classList.remove("rs-hidden"),
-        hide: () => el.classList.add("rs-hidden"),
-        _el: el,
-      };
+      return this;
     }
   }
 
-  // ── Expose globally ────────────────────────────────────────────────────────
-  global.RSniperUI = RSniperUI;
+  global.FloatUI = FloatUI;
 
 })(typeof unsafeWindow !== "undefined" ? unsafeWindow : window);
